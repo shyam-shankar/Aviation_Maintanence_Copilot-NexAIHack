@@ -46,6 +46,18 @@ app.add_middleware(
 )
 
 
+@app.middleware("http")
+async def normalize_vercel_paths(request, call_next):
+    """Normalize internal Vercel rewrites to ensure clean route matching."""
+    path = request.scope.get("path", "")
+    for prefix in ["/api/index.py", "/index.py"]:
+        if prefix in path:
+            new_path = path.replace(prefix, "") or "/"
+            request.scope["path"] = new_path
+            break
+    return await call_next(request)
+
+
 class ChatRequest(BaseModel):
   query: str = Field(
     ...,

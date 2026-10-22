@@ -20,7 +20,10 @@ from typing import Any, Dict, List, Optional, TypedDict
 from dotenv import load_dotenv
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 from langchain_core.tools import tool
-from langchain_ollama import ChatOllama
+try:
+    from langchain_ollama import ChatOllama
+except ImportError:
+    ChatOllama = None
 from langgraph.graph import END, StateGraph
 
 from search_engine import detect_recurring_defects, get_record, search_records

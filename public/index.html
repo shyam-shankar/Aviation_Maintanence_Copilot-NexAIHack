@@ -395,6 +395,9 @@
         }
         if (!response.ok && response.status === 404) {
           response = await fetch('/api/index.py', {
+        // If /api/chat is 404, fallback to /chat
+        if (response.status === 404) {
+          response = await fetch('/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ query: query })
