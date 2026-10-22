@@ -12,7 +12,7 @@ from indexer import HybridIndex
 from graph_builder import AviationKnowledgeGraph
 
 SYSTEM_DISCLAIMER = (
-    "⚠️ FLIGHT SAFETY NOTICE: This copilot provides diagnostic reference based strictly on "
+    "FLIGHT SAFETY NOTICE: This copilot provides diagnostic reference based strictly on "
     "MaintNet historical aviation logbooks. It is NOT manufacturer-approved maintenance data "
     "or an FAA/EASA certified procedure. Always consult official Aircraft Maintenance Manuals (AMM)."
 )
@@ -298,7 +298,7 @@ Rules:
 
         if llm_answer:
             answer_text = (
-                f"### 🤖 Gemma 4 Diagnostic Synthesis\n\n"
+                f"### Gemma 4 Diagnostic Synthesis\n\n"
                 f"**Anchored System:** `{graph_res.get('system', 'Powerplant')}` | "
                 f"**Component:** `{graph_res.get('component', 'Core')}`\n\n"
                 f"{llm_answer}"
@@ -310,15 +310,15 @@ Rules:
             best_fix = cited_records[0]["action"] if cited_records else "Inspect according to AMM"
 
             answer_text = (
-                f"### ✈️ GraphRAG Diagnostic Assessment\n\n"
+                f"### GraphRAG Diagnostic Assessment\n\n"
                 f"**Anchored System:** `{graph_res.get('system', 'Powerplant')}`  \n"
                 f"**Component Affected:** `{comp_name}`  \n"
                 f"**Historical Defect Pattern:** `{symp_name}`\n\n"
-                f"#### 🔍 Observed Problem Variants in Historical Fleet:\n"
+                f"#### Observed Problem Variants in Historical Fleet:\n"
                 + "\n".join(causes) + "\n\n"
-                f"#### 🛠️ Verified Clearing Actions Taken by Technicians:\n"
+                f"#### Verified Clearing Actions Taken by Technicians:\n"
                 + "\n".join(actions) + "\n\n"
-                f"#### 🎯 Primary Recommendation:\n"
+                f"#### Primary Recommendation:\n"
                 f"Historical records indicate technicians most frequently cleared this fault by: **{best_fix}** "
                 f"*(Documented in `[IDENT: {cited_records[0]['ident']}]`)*."
             )

@@ -14,7 +14,7 @@ from agent import MaintenanceCopilotAgent, SYSTEM_DISCLAIMER
 # Page config
 st.set_page_config(
     page_title="AeroGraph Copilot | Aviation MRO Diagnostics",
-    page_icon="🛫",
+    page_icon=None,
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -140,7 +140,7 @@ index, kg, agent = load_system()
 
 # Cockpit HUD Header
 llm_status_badge = (
-    '<span class="telemetry-tag telemetry-purple">🤖 GEMMA 4:E2B READY (OLLAMA)</span>'
+    '<span class="telemetry-tag telemetry-purple">GEMMA 4:E2B READY (OLLAMA)</span>'
     if agent.is_ollama_available
     else '<span class="telemetry-tag">DETERMINISTIC MODE</span>'
 )
@@ -149,7 +149,7 @@ st.markdown(f"""
 <div class="hud-header">
     <div style="display: flex; justify-content: space-between; align-items: center;">
         <div>
-            <div class="hud-title">🛫 AEROGRAPH // MRO FLIGHT LOG COPILOT</div>
+            <div class="hud-title">AEROGRAPH // MRO FLIGHT LOG COPILOT</div>
             <div class="hud-subtitle">Autonomous Knowledge-Graph & Hybrid RAG Diagnostic Engine • UND Aviation Fleet (2012–2017)</div>
         </div>
         <div style="text-align: right;">
@@ -162,36 +162,36 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # Mandatory Airworthiness Disclaimer
-st.caption(f"🛡️ **MANDATORY AIRWORTHINESS ADVISORY**: {SYSTEM_DISCLAIMER}")
+st.caption(f"**MANDATORY AIRWORTHINESS ADVISORY**: {SYSTEM_DISCLAIMER}")
 
 # Sidebar Telemetry & Quick Diagnostic Buttons
 with st.sidebar:
-    st.markdown("### 🤖 Local LLM Settings")
+    st.markdown("### Local LLM Settings")
     enable_llm = st.toggle(
         "Enable Gemma 4 (Ollama)",
         value=agent.is_ollama_available,
         help="Enables conversational slang query rewriting and natural language synthesis."
     )
     if agent.is_ollama_available:
-        st.success("🟢 Local Ollama Online: `gemma4:e2b`", icon="✅")
+        st.success("Local Ollama Online: `gemma4:e2b`")
     else:
-        st.info("⚪ Ollama offline; using deterministic GraphRAG engine.")
+        st.info("Ollama offline; using deterministic GraphRAG engine.")
 
     st.divider()
-    st.markdown("### 🎛️ Diagnostic Scenarios")
+    st.markdown("### Diagnostic Scenarios")
     st.markdown("Select a real flight discrepancy to test:")
     
     sample_queries = [
-        ("⚡ Ignition: Mag RPM drop on runup", "Left magneto excessive RPM drop during engine run-up checks"),
-        ("⛽ Fuel: Pressure needle spiking red", "Fuel pressure indicator needle spiking into the red arc intermittently"),
-        ("🛞 Gear/Brakes: Worn brake linings", "Main landing gear brake linings excessively worn and thin"),
-        ("🛢️ Lube: Abnormally high oil pressure", "Abnormally high engine oil pressure observed during ground run"),
-        ("⚙️ Starter: Grinding sheared ring gear", "Grinding noise on engine start, teeth sheared on starter ring gear"),
-        ("🌬️ Cooling: Cowl flap creeps shut in flight", "Right cowl flap creeps shut and will not stay open in flight"),
-        ("🛡️ Near-Miss Refusal: Cockpit fuel selector leak", "Fuel tank selector valve jammed with fuel leaking into cockpit carpet"),
-        ("🛡️ Near-Miss Refusal: Magneto plastic gear seized", "Magneto internal plastic distributor gear teeth stripped and seized"),
-        ("🛡️ Near-Miss Refusal: Governor flyweight separation", "Propeller governor internal flyweights separated and jammed at high pitch stop"),
-        ("🛡️ Near-Miss Refusal: Sunk carburetor brass float", "Carburetor brass float punctured and sunk causing continuous fuel overflow through throat"),
+        ("Ignition: Mag RPM drop on runup", "Left magneto excessive RPM drop during engine run-up checks"),
+        ("Fuel: Pressure needle spiking red", "Fuel pressure indicator needle spiking into the red arc intermittently"),
+        ("Gear/Brakes: Worn brake linings", "Main landing gear brake linings excessively worn and thin"),
+        ("Lube: Abnormally high oil pressure", "Abnormally high engine oil pressure observed during ground run"),
+        ("Starter: Grinding sheared ring gear", "Grinding noise on engine start, teeth sheared on starter ring gear"),
+        ("Cooling: Cowl flap creeps shut in flight", "Right cowl flap creeps shut and will not stay open in flight"),
+        ("Near-Miss Refusal: Cockpit fuel selector leak", "Fuel tank selector valve jammed with fuel leaking into cockpit carpet"),
+        ("Near-Miss Refusal: Magneto plastic gear seized", "Magneto internal plastic distributor gear teeth stripped and seized"),
+        ("Near-Miss Refusal: Governor flyweight separation", "Propeller governor internal flyweights separated and jammed at high pitch stop"),
+        ("Near-Miss Refusal: Sunk carburetor brass float", "Carburetor brass float punctured and sunk causing continuous fuel overflow through throat"),
     ]
     
     for label, query_text in sample_queries:
@@ -199,10 +199,10 @@ with st.sidebar:
             st.session_state["active_query"] = query_text
 
     st.divider()
-    st.markdown("### 📡 System Architecture")
+    st.markdown("### System Architecture")
     st.markdown(
         """
-        - **Ontology Nodes:** `System` ➔ `Component` ➔ `Symptom` ➔ `Action`
+        - **Ontology Nodes:** `System` -> `Component` -> `Symptom` -> `Action`
         - **Edge Properties:** `weight` (occurrences) + `record_ids`
         - **Query Rewriter:** Gemma 4:E2B translates conversational slang
         - **Refusal Gate:** Deterministic topological check + confidence threshold
@@ -215,9 +215,9 @@ if "active_query" not in st.session_state:
 
 # Navigation Tabs
 tab_diag, tab_chronic, tab_ontology = st.tabs([
-    "🕹️ Diagnostic Console",
-    "📊 Fleet Chronic Defect Analytics",
-    "🕸️ Knowledge Graph Ontology"
+    "Diagnostic Console",
+    "Fleet Chronic Defect Analytics",
+    "Knowledge Graph Ontology"
 ])
 
 # -------------------------------------------------------------
@@ -261,8 +261,8 @@ with tab_diag:
         if response.get("was_rewritten"):
             st.markdown(f"""
             <div class="rewrite-banner">
-                🔄 <b>Gemma 4 Conversational Query Expansion Active:</b><br/>
-                <i>Original Slang:</i> <code>"{response['query']}"</code> ➔ 
+                <b>Gemma 4 Conversational Query Expansion Active:</b><br/>
+                <i>Original Slang:</i> <code>"{response['query']}"</code> -&gt; 
                 <i>Search Keywords:</i> <code>"{response['effective_query']}"</code>
             </div>
             """, unsafe_allow_html=True)
@@ -275,12 +275,12 @@ with tab_diag:
 
             # Visual Subgraph Rendering
             if response.get("graph_dot"):
-                st.markdown("#### 🌐 Causal Knowledge Subgraph")
-                st.caption("Visual path traversed by the agent from Aircraft System ➔ Component ➔ Symptom ➔ Resolving Action:")
+                st.markdown("#### Causal Knowledge Subgraph")
+                st.caption("Visual path traversed by the agent from Aircraft System -> Component -> Symptom -> Resolving Action:")
                 st.graphviz_chart(response["graph_dot"], use_container_width=True)
 
         with c_right:
-            st.markdown("### 📑 Grounded Logbook Records")
+            st.markdown("### Grounded Logbook Records")
             st.caption("Verbatim historical records cited to justify the diagnostic verdict:")
             
             cited = response.get("cited_records", [])
@@ -303,7 +303,7 @@ with tab_diag:
                 st.info("No verified historical logbook records met the confidence threshold. Citations withheld to prevent ungrounded advice.")
 
         # Tool Execution Trace
-        with st.expander("🛠️ Agent Tool-Call Trace (Auditing & Explainability)", expanded=False):
+        with st.expander("Agent Tool-Call Trace (Auditing & Explainability)", expanded=False):
             st.caption("Sequential execution trace of tools called by the agent:")
             for step in response.get("tool_trace", []):
                 st.markdown(f"**Step {step['step']}: Tool `{step['tool']}()`**")
@@ -317,7 +317,7 @@ with tab_diag:
 # TAB 2: Fleet Chronic Defect Analytics (The Stretch Goal)
 # -------------------------------------------------------------
 with tab_chronic:
-    st.subheader("📊 Fleet Chronic Defect Analytics (Recurring Defect Detector)")
+    st.subheader("Fleet Chronic Defect Analytics (Recurring Defect Detector)")
     st.caption("Top failure modes and high-frequency defect patterns ranked by graph edge weights across all 6,169 aircraft records.")
 
     chronic_defects = kg.get_chronic_defects(12)
@@ -350,7 +350,7 @@ with tab_chronic:
 # TAB 3: Knowledge Graph Ontology
 # -------------------------------------------------------------
 with tab_ontology:
-    st.subheader("🕸️ Aviation Knowledge Graph Schema & Entity Resolution")
+    st.subheader("Aviation Knowledge Graph Schema & Entity Resolution")
     st.markdown(
         """
         The copilot converts unstructured logbook text into four strict node entities linked by typed causal relationships:
@@ -376,7 +376,7 @@ with tab_ontology:
     """
     st.graphviz_chart(schema_dot, use_container_width=True)
 
-    st.markdown("### 📈 Graph Topology Statistics")
+    st.markdown("### Graph Topology Statistics")
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Knowledge Nodes", kg.graph.number_of_nodes())
     c2.metric("Causal Edges", kg.graph.number_of_edges())

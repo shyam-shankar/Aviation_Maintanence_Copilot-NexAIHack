@@ -1,12 +1,12 @@
-# ✈️ Aviation Maintenance Copilot
+# Aviation Maintenance Copilot
 
 An empirical diagnostic copilot for aircraft technicians, grounded strictly in 6,169 historical maintenance logbook records from the MaintNet / University of North Dakota Aviation Program (2012–2017).
 
-> **⚠️ SAFETY NOTICE:** This tool provides diagnostic reference based strictly on historical logbook entries. It does **not** provide FAA/EASA certified or manufacturer-approved maintenance procedures. Always consult the official Aircraft Maintenance Manual (AMM).
+> **SAFETY NOTICE:** This tool provides diagnostic reference based strictly on historical logbook entries. It does **not** provide FAA/EASA certified or manufacturer-approved maintenance procedures. Always consult the official Aircraft Maintenance Manual (AMM).
 
 ---
 
-## 🛠️ Key Features (MVP)
+## Key Features (MVP)
 
 1. **Aviation Text Normalizer ([`normalizer.py`](normalizer.py)):**
    - Merges MaintNet abbreviation tables with operational aircraft maintenance shorthand (`R&R` $\rightarrow$ `removed and replaced`, `A/C` $\rightarrow$ `aircraft`, `CYL` $\rightarrow$ `cylinder`, `L/H` $\rightarrow$ `left hand`, `ALT` $\rightarrow$ `alternator`).
@@ -40,7 +40,7 @@ An empirical diagnostic copilot for aircraft technicians, grounded strictly in 6
 
 ---
 
-## 🚀 Running the Copilot
+## Running the Copilot
 
 The environment is already configured in `.venv`:
 

@@ -49,7 +49,7 @@ REFUSAL_TESTS = [
 
 def run_evaluation():
     print("=" * 60)
-    print("🚀 RUNNING COPILOT BENCHMARK & EVALUATION SUITE")
+    print("RUNNING COPILOT BENCHMARK & EVALUATION SUITE")
     print("=" * 60)
 
     index = HybridIndex(DATASET_CSV, ABBREV_CSV)
@@ -79,12 +79,12 @@ def run_evaluation():
 
         if is_hit:
             hits += 1
-            print(f"  ✅ [Hit @ Rank {hit_rank}] Query: '{query}' -> Found: [IDENT: {res['candidates'][hit_rank-1]['ident']}] ('{res['candidates'][hit_rank-1]['problem']}')")
+            print(f"  [HIT @ Rank {hit_rank}] Query: '{query}' -> Found: [IDENT: {res['candidates'][hit_rank-1]['ident']}] ('{res['candidates'][hit_rank-1]['problem']}')")
         else:
-            print(f"  ❌ [Miss] Query: '{query}' -> Expected: {expected_id}, Got: {candidate_ids[:3]}")
+            print(f"  [MISS] Query: '{query}' -> Expected: {expected_id}, Got: {candidate_ids[:3]}")
 
     hit_rate = (hits / len(TEST_PAIRS)) * 100
-    print(f"\n📊 Retrieval Hit@5: {hits}/{len(TEST_PAIRS)} ({hit_rate:.1f}%)")
+    print(f"\nRetrieval Hit@5: {hits}/{len(TEST_PAIRS)} ({hit_rate:.1f}%)")
 
     # 2. Refusal Evaluation
     print("\n" + "-" * 60)
@@ -95,12 +95,12 @@ def run_evaluation():
         is_refused = resp["status"] == "refusal"
         if is_refused:
             refusals += 1
-            print(f"  🛡️ [Correct Refusal] '{q}' -> Refused: '{resp['answer'][:40]}...'")
+            print(f"  [CORRECT REFUSAL] '{q}' -> Refused: '{resp['answer'][:40]}...'")
         else:
-            print(f"  ⚠️ [Hallucination / Failed Refusal] '{q}' -> Answered with {len(resp['cited_records'])} citations")
+            print(f"  [FAILED REFUSAL] '{q}' -> Answered with {len(resp['cited_records'])} citations")
 
     refusal_rate = (refusals / len(REFUSAL_TESTS)) * 100
-    print(f"\n📊 Refusal Accuracy: {refusals}/{len(REFUSAL_TESTS)} ({refusal_rate:.1f}%)")
+    print(f"\nRefusal Accuracy: {refusals}/{len(REFUSAL_TESTS)} ({refusal_rate:.1f}%)")
 
     # 3. Citation Precision
     print("\n" + "-" * 60)
@@ -119,10 +119,10 @@ def run_evaluation():
     print(f"  Tested Query: '{sample_q}'")
     print(f"  Total Citations Generated: {len(cited)}")
     print(f"  Verified Valid Citations: {valid_citations}")
-    print(f"📊 Citation Precision: {precision:.1f}%\n")
+    print(f"Citation Precision: {precision:.1f}%\n")
 
     print("=" * 60)
-    print("✅ EVALUATION COMPLETED")
+    print("EVALUATION COMPLETED")
     print("=" * 60)
 
 if __name__ == "__main__":
