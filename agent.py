@@ -1,360 +1,360 @@
-"""Agentic aviation maintenance assistant built with LangGraph and Ollama qwen2.5:3b.
-
-Features:
-  - Input abbreviation normalization via `utils.normalizer.normalize_text`
-  - Tool binding: `search_records` and `get_record` from `search_engine`
-  - Strict Refusal Threshold Logic (refuses queries with top match score < 0.35)
-  - Explicit record ID citations (e.g. `[Record #100062]`)
-  - Execution trace recording tool calls and intermediate decisions
+"""
+AeroGraph Copilot Agent (Hybrid GraphRAG + Local LLM Integration)
+Integrates BM25, TF-IDF vector search, NetworkX Knowledge Graph,
+and local Gemma 4 (via Ollama) for conversational query rewriting and grounded synthesis.
 """
 
-from __future__ import annotations
-
-import json
 import os
 import re
-import uuid
-from typing import Any, Dict, List, Optional, TypedDict
+import requests
+from typing import Dict, List, Any, Optional, Tuple
+from indexer import HybridIndex
+from graph_builder import AviationKnowledgeGraph
 
-from dotenv import load_dotenv
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
-from langchain_core.tools import tool
-from langchain_ollama import ChatOllama
-from langgraph.graph import END, StateGraph
+SYSTEM_DISCLAIMER = (
+    "⚠️ FLIGHT SAFETY NOTICE: This copilot provides diagnostic reference based strictly on "
+    "MaintNet historical aviation logbooks. It is NOT manufacturer-approved maintenance data "
+    "or an FAA/EASA certified procedure. Always consult official Aircraft Maintenance Manuals (AMM)."
+)
 
-from search_engine import get_record, search_records
-from utils.normalizer import normalize_text
+OLLAMA_ENDPOINT = "http://localhost:11434"
+DEFAULT_MODEL = "gemma4:e2b"
 
-load_dotenv()
+class MaintenanceCopilotAgent:
+    def __init__(
+        self,
+        index: HybridIndex,
+        kg: Optional[AviationKnowledgeGraph] = None,
+        ollama_model: str = DEFAULT_MODEL,
+        api_key: Optional[str] = None
+    ):
+        self.index = index
+        self.kg = kg or AviationKnowledgeGraph(index.dataset_csv, index.abbreviation_csv)
+        self.ollama_model = ollama_model
+        self.api_key = api_key or os.getenv("GEMINI_API_KEY") or os.getenv("OPENAI_API_KEY")
+        self.is_ollama_available = self._check_ollama()
 
-REFUSAL_THRESHOLD = 0.35
-REFUSAL_MESSAGE = "Insufficient evidence in historical logbooks to provide a confident fix."
-
-
-# ---------------------------------------------------------------------------
-# Tool Definitions
-# ---------------------------------------------------------------------------
-@tool
-def search_records_tool(query: str) -> str:
-    """Search aviation maintenance records using hybrid BM25 and FAISS search."""
-    results = search_records(query, top_k=5)
-    return json.dumps(results, indent=2)
-
-
-@tool
-def get_record_tool(record_id: str) -> str:
-    """Retrieve full details of a specific aviation maintenance log record by IDENT ID."""
-    rec = get_record(record_id)
-    if not rec:
-        return f"Record {record_id} not found."
-    return json.dumps(rec, indent=2)
-
-
-TOOLS = [search_records_tool, get_record_tool]
-
-
-# ---------------------------------------------------------------------------
-# LLM Initialization with Fallback Support
-# ---------------------------------------------------------------------------
-def get_llm():
-    """Initialize primary ChatOllama qwen2.5:3b with optional cloud fallback."""
-    # Check if Groq API key is present
-    groq_api_key = os.getenv("GROQ_API_KEY")
-    if groq_api_key:
+    def _check_ollama(self) -> bool:
         try:
-            from langchain_groq import ChatGroq
-
-            print("Using ChatGroq fallback...")
-            return ChatGroq(model_name="qwen-2.5-32b", api_key=groq_api_key).bind_tools(TOOLS)
+            r = requests.get(f"{OLLAMA_ENDPOINT}/api/tags", timeout=1.5)
+            if r.status_code == 200:
+                models = [m.get("name") for m in r.json().get("models", [])]
+                return any(self.ollama_model in m for m in models)
         except Exception:
             pass
+        return False
 
-    # Check if Google Generative AI API key is present
-    google_api_key = os.getenv("GOOGLE_API_KEY")
-    if google_api_key:
+    def rewrite_query(self, raw_query: str) -> Tuple[str, bool, str]:
+        """
+        Tool 0: Conversational Query Rewriting using local Gemma 4
+        Translates conversational slang or symptoms into standard logbook search terms.
+        """
+        # If query is already very short or logbook-like, keep it
+        tokens = raw_query.strip().split()
+        if len(tokens) <= 3 and any(t.isupper() for t in tokens):
+            return raw_query, False, "Pass-through (Already terse logbook keywords)"
+
+        if not self.is_ollama_available:
+            return raw_query, False, "Ollama unavailable; using standard normalizer"
+
+        prompt = f"""Convert this conversational fault report into 3 to 6 aviation maintenance search terms.
+Reply with ONLY the search terms on a single line, nothing else.
+
+Example:
+Report: the bird's left fan is coughing when I push the throttle
+Search terms: left engine choke power loss throttle
+
+Report: {raw_query}
+Search terms:"""
+
         try:
-            from langchain_google_genai import ChatGoogleGenerativeAI
-
-            print("Using ChatGoogleGenerativeAI fallback...")
-            return ChatGoogleGenerativeAI(model="gemini-2.5-flash", api_key=google_api_key).bind_tools(TOOLS)
-        except Exception:
+            payload = {
+                "model": self.ollama_model,
+                "prompt": prompt,
+                "stream": False,
+                "options": {"temperature": 0.1}
+            }
+            resp = requests.post(f"{OLLAMA_ENDPOINT}/api/generate", json=payload, timeout=8)
+            if resp.status_code == 200:
+                text = resp.json().get("response", "").strip()
+                # Clean up lines
+                lines = [re.sub(r"[\*\"]", "", l).strip() for l in text.split("\n") if l.strip()]
+                if lines and len(lines[0]) > 3:
+                    rewritten = lines[0]
+                    return rewritten, True, f"Rewritten via {self.ollama_model}"
+        except Exception as e:
             pass
 
-    # Primary local model: qwen2.5:3b via Ollama
-    base_url = os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
-    model_name = os.getenv("OLLAMA_MODEL", "qwen2.5:3b")
-    chat_model = ChatOllama(model=model_name, base_url=base_url, temperature=0.1)
-    return chat_model.bind_tools(TOOLS)
+        return raw_query, False, "Fallback to original query"
 
-
-LLM = get_llm()
-
-
-# ---------------------------------------------------------------------------
-# LangGraph State Schema
-# ---------------------------------------------------------------------------
-class AgentState(TypedDict):
-    raw_query: str
-    normalized_query: str
-    search_results: list[dict[str, Any]]
-    refused: bool
-    answer: str
-    cited_records: list[dict[str, Any]]
-    tool_trace: list[dict[str, Any]]
-
-
-# ---------------------------------------------------------------------------
-# Graph Nodes
-# ---------------------------------------------------------------------------
-def normalize_input_node(state: AgentState) -> dict[str, Any]:
-    """Normalize raw user input using aviation abbreviation dictionary."""
-    raw = state.get("raw_query", "")
-    norm = normalize_text(raw)
-    trace = list(state.get("tool_trace", []))
-    trace.append({
-        "step": "normalize_input",
-        "tool": "utils.normalizer.normalize_text",
-        "input": raw,
-        "output": norm,
-    })
-    return {"normalized_query": norm, "tool_trace": trace}
-
-
-def retrieve_and_evaluate_node(state: AgentState) -> dict[str, Any]:
-    """Execute hybrid search and enforce strict refusal threshold logic."""
-    query = state.get("normalized_query") or state.get("raw_query", "")
-    results = search_records(query, top_k=5)
-
-    trace = list(state.get("tool_trace", []))
-    top_score = results[0]["score"] if results else 0.0
-
-    trace.append({
-        "step": "retrieve_records",
-        "tool": "search_records",
-        "input": {"query": query},
-        "retrieved_count": len(results),
-        "top_score": top_score,
-        "threshold": REFUSAL_THRESHOLD,
-    })
-
-    # Strict Refusal Threshold Logic:
-    # If no results or highest match score is below 0.35, refuse immediately.
-    if not results or top_score < REFUSAL_THRESHOLD:
-        trace.append({
-            "step": "refusal_evaluation",
-            "decision": "REFUSED",
-            "reason": f"Top match score {top_score:.4f} is below threshold {REFUSAL_THRESHOLD}",
-        })
+    def search_records(self, query: str, top_k: int = 5) -> Dict[str, Any]:
+        """Tool 1: Hybrid keyword + vector search with calibrated refusal gate"""
+        results, is_confident, metrics = self.index.search(query, top_k=top_k)
         return {
-            "search_results": results,
-            "refused": True,
-            "answer": REFUSAL_MESSAGE,
-            "cited_records": [],
-            "tool_trace": trace,
+            "tool": "search_records",
+            "parameters": {"query": query, "top_k": top_k},
+            "is_confident": is_confident,
+            "metrics": metrics,
+            "candidates": results
         }
 
-    trace.append({
-        "step": "refusal_evaluation",
-        "decision": "ACCEPTED",
-        "top_score": top_score,
-    })
-    return {
-        "search_results": results,
-        "refused": False,
-        "tool_trace": trace,
-    }
-
-
-def should_refuse(state: AgentState) -> str:
-    """Conditional router based on refusal status."""
-    return "refused" if state.get("refused", False) else "generate"
-
-
-def generate_node(state: AgentState) -> dict[str, Any]:
-    """Generate structured response citing retrieved logbook records."""
-    raw_query = state.get("raw_query", "")
-    norm_query = state.get("normalized_query", "")
-    results = state.get("search_results", [])
-    trace = list(state.get("tool_trace", []))
-
-    system_prompt = (
-        "You are an expert aviation maintenance technician and logbook analyst.\n"
-        "Your role is to diagnose the discrepancy and provide verified corrective actions "
-        "based STRICTLY on the retrieved historical maintenance records.\n\n"
-        "CRITICAL INSTRUCTIONS:\n"
-        "1. Base your answer ONLY on the provided historical records. Do NOT invent, assume, or hallucinate procedures.\n"
-        "2. You MUST explicitly cite the specific record ID for every finding, symptom, and repair action "
-        "using the exact format '[Record #<ID>]' (for example: [Record #100062]).\n"
-        "3. Provide a clear, professional breakdown:\n"
-        "   - Problem & Symptom Analysis (citing relevant Record IDs)\n"
-        "   - Historical Corrective Actions Performed (citing relevant Record IDs)\n"
-        "   - Recommended Technical Next Steps"
-    )
-
-    call_id = f"call_{uuid.uuid4().hex[:8]}"
-
-    # Tool invocation message chain
-    ai_tool_call = AIMessage(
-        content="",
-        tool_calls=[{
-            "name": "search_records_tool",
-            "args": {"query": norm_query},
-            "id": call_id,
-            "type": "tool_call",
-        }],
-    )
-
-    # Tool output containing the retrieved records
-    tool_output_payload = [
-        {
-            "ident": r["ident"],
-            "problem": r["problem_normalized"],
-            "action": r["action_normalized"],
-            "confidence_score": r["score"],
+    def get_record(self, record_id: str) -> Dict[str, Any]:
+        """Tool 2: Fetch raw record text for citation"""
+        rec = self.index.get_record(record_id)
+        return {
+            "tool": "get_record",
+            "parameters": {"record_id": record_id},
+            "found": rec is not None,
+            "record": rec
         }
-        for r in results
-    ]
 
-    tool_msg = ToolMessage(
-        content=json.dumps(tool_output_payload, indent=2),
-        tool_call_id=call_id,
-        name="search_records_tool",
-    )
+    def query_graph(self, query: str) -> Dict[str, Any]:
+        """Tool 3: Subgraph traversal across System -> Component -> Symptom -> Action"""
+        return self.kg.query_graph(query)
 
-    messages = [
-        SystemMessage(content=system_prompt),
-        HumanMessage(content=f"Reported Discrepancy: {raw_query}"),
-        ai_tool_call,
-        tool_msg,
-    ]
+    def synthesize_with_llm(
+        self,
+        fault_query: str,
+        cited_records: List[Dict],
+        graph_res: Dict[str, Any]
+    ) -> Optional[str]:
+        """
+        Synthesizes grounded response using local Gemma 4 (via Ollama).
+        Maintains strict grounding and citation preservation.
+        """
+        if not self.is_ollama_available or not cited_records:
+            return None
 
-    response = LLM.invoke(messages)
+        records_block = "\n".join([
+            f"- Record [IDENT: {r['ident']}]: Problem: \"{r['problem']}\" | Action: \"{r['action']}\""
+            for r in cited_records
+        ])
 
-    # Check if LLM requested an additional tool call (e.g. get_record_tool)
-    if hasattr(response, "tool_calls") and response.tool_calls:
-        for tc in response.tool_calls:
-            t_name = tc.get("name", "")
-            t_args = tc.get("args", {})
-            t_id = tc.get("id", f"call_{uuid.uuid4().hex[:8]}")
+        prompt = f"""You are an aviation maintenance copilot assistant.
+A technician reported this discrepancy: "{fault_query}".
+System: {graph_res.get('system', 'Powerplant')} | Component: {graph_res.get('component', 'General')}
 
-            if "get_record" in t_name:
-                rec_id = t_args.get("record_id", "")
-                rec_data = get_record(rec_id)
-                trace.append({
-                    "step": "get_record_tool",
-                    "tool": "get_record",
-                    "input": {"record_id": rec_id},
-                    "found": rec_data is not None,
-                })
-                sub_tool_msg = ToolMessage(
-                    content=json.dumps(rec_data, indent=2) if rec_data else f"Record {rec_id} not found.",
-                    tool_call_id=t_id,
-                    name=t_name,
-                )
-                messages.extend([response, sub_tool_msg])
-                response = LLM.invoke(messages)
-                break
+Below are verified historical maintenance logbook records:
+{records_block}
 
-    answer_text = response.content if hasattr(response, "content") else str(response)
+Provide a concise, grounded maintenance diagnostic report with three sections:
+1. Observed Causes in Historical Fleet (cite each record ID).
+2. Historical Clearing Actions Taken by Technicians (cite each record ID).
+3. Primary Recommendation (cite the most relevant record ID).
 
-    # Extract all cited record IDs from answer text (e.g. [Record #100062] or Record #100062)
-    cited_ids_raw = re.findall(r"(?:Record\s*#?|\[Record\s*#?)(\d+)", answer_text, re.IGNORECASE)
-    cited_ids = set(int(cid) for cid in cited_ids_raw)
+Rules:
+- Strictly ground every claim in the provided records.
+- Always include the record citation like [IDENT: XXXXXX].
+- Do not invent ungrounded procedures."""
 
-    # Match cited IDs against retrieved records; fallback to top search results if none parsed
-    cited_records = [r for r in results if r["ident"] in cited_ids]
-    if not cited_records and results:
-        cited_records = results[:2]
+        try:
+            payload = {
+                "model": self.ollama_model,
+                "prompt": prompt,
+                "stream": False,
+                "options": {"temperature": 0.2}
+            }
+            resp = requests.post(f"{OLLAMA_ENDPOINT}/api/generate", json=payload, timeout=12)
+            if resp.status_code == 200:
+                answer = resp.json().get("response", "").strip()
+                if answer and len(answer) > 50:
+                    return answer
+        except Exception:
+            pass
 
-    trace.append({
-        "step": "generate_answer",
-        "model": "qwen2.5:3b",
-        "cited_ids": [r["ident"] for r in cited_records],
-    })
+        return None
 
-    return {
-        "answer": answer_text,
-        "cited_records": cited_records,
-        "tool_trace": trace,
-    }
+    def answer_fault(self, fault_query: str, enable_llm: bool = True) -> Dict[str, Any]:
+        """
+        Executes full agentic workflow:
+        0. Query rewrite (Gemma 4 converts slang -> logbook keywords)
+        1. Hybrid search (BM25 + TF-IDF)
+        2. Refusal check (Zero hallucination guardrail)
+        3. Knowledge graph traversal (Causal path & edge weights)
+        4. Verbatim record inspection
+        5. Grounded synthesis (Gemma 4 LLM or deterministic fallback)
+        """
+        trace = []
 
+        # Step 0: Tool Call rewrite_query
+        effective_query = fault_query
+        was_rewritten = False
+        rewrite_note = ""
 
-# ---------------------------------------------------------------------------
-# Build the LangGraph Workflow
-# ---------------------------------------------------------------------------
-def build_agent_graph():
-    workflow = StateGraph(AgentState)
+        if enable_llm:
+            rewritten_q, was_rewritten, rewrite_note = self.rewrite_query(fault_query)
+            if was_rewritten:
+                effective_query = rewritten_q
+            trace.append({
+                "step": 0,
+                "tool": "rewrite_query",
+                "input": {"raw_query": fault_query},
+                "output_summary": f"Rewritten to: '{effective_query}' ({rewrite_note})",
+                "details": {"original": fault_query, "rewritten": effective_query, "active": was_rewritten}
+            })
 
-    workflow.add_node("normalize", normalize_input_node)
-    workflow.add_node("retrieve", retrieve_and_evaluate_node)
-    workflow.add_node("generate", generate_node)
+        # Step 1: Tool Call search_records
+        search_res = self.search_records(effective_query, top_k=5)
+        top_conf = search_res["metrics"].get("top_confidence", 0.0)
+        trace.append({
+            "step": 1,
+            "tool": "search_records",
+            "input": {"query": effective_query, "top_k": 5},
+            "output_summary": f"Retrieved {len(search_res['candidates'])} candidates. Confidence: {top_conf:.2f}",
+            "details": search_res["metrics"]
+        })
 
-    workflow.set_entry_point("normalize")
-    workflow.add_edge("normalize", "retrieve")
+        # Step 2: Refusal Gate Check
+        if not search_res["is_confident"]:
+            return {
+                "status": "refusal",
+                "query": fault_query,
+                "effective_query": effective_query,
+                "was_rewritten": was_rewritten,
+                "answer": (
+                    "**Refusal: Insufficient Evidence in Logbooks.**\n\n"
+                    "The historical maintenance logbooks do not contain sufficiently verified precedents "
+                    "matching this fault description. In aviation maintenance, guessing or interpolating "
+                    "unverified procedures poses severe airworthiness risks.\n\n"
+                    "**Required Action:** Consult the official Aircraft Maintenance Manual (AMM) and "
+                    "troubleshooting chart for your specific airframe and engine model."
+                ),
+                "cited_records": [],
+                "confidence": top_conf,
+                "graph_dot": "",
+                "subgraph_info": None,
+                "disclaimer": SYSTEM_DISCLAIMER,
+                "tool_trace": trace
+            }
 
-    workflow.add_conditional_edges(
-        "retrieve",
-        should_refuse,
-        {
-            "refused": END,
-            "generate": "generate",
-        },
-    )
+        # Step 3: Tool Call query_graph
+        top_candidates = search_res["candidates"][:3]
+        graph_res = self.query_graph(effective_query)
+        if graph_res.get("status") != "success" and top_candidates:
+            fallback_query = f"{top_candidates[0]['problem']} {top_candidates[0]['action']}"
+            graph_res = self.query_graph(fallback_query)
 
-    workflow.add_edge("generate", END)
-    return workflow.compile()
+        trace.append({
+            "step": 2,
+            "tool": "query_graph",
+            "input": {"query": effective_query},
+            "output_summary": f"Traversed Knowledge Graph: Component='{graph_res.get('component')}' -> Symptom='{graph_res.get('symptom')}'",
+            "details": {
+                "system": graph_res.get("system"),
+                "component": graph_res.get("component"),
+                "symptom": graph_res.get("symptom"),
+                "traversal_paths": len(graph_res.get("traversal", []))
+            }
+        })
 
+        # Step 4: Tool Call get_record on top candidates
+        inspected_records = []
+        for cand in top_candidates:
+            ident = cand["ident"]
+            rec_res = self.get_record(ident)
+            trace.append({
+                "step": len(trace) + 1,
+                "tool": "get_record",
+                "input": {"record_id": ident},
+                "output_summary": f"Fetched record IDENT {ident}: Problem: '{cand['problem'][:30]}...' Action: '{cand['action'][:30]}...'"
+            })
+            if rec_res["found"]:
+                inspected_records.append(rec_res["record"])
 
-AGENT_GRAPH = build_agent_graph()
+        # Step 5: Synthesize Answer
+        cited_records = []
+        causes = []
+        actions = []
 
+        for i, rec in enumerate(inspected_records):
+            ident = rec["ident"]
+            cand_meta = top_candidates[i]
+            cited_records.append({
+                "ident": ident,
+                "problem": rec["problem"],
+                "action": rec["action"],
+                "score": cand_meta["confidence"],
+                "cos_sim": cand_meta["cos_sim"],
+                "bm25": cand_meta["bm25_score"],
+                "component": graph_res.get("component", "Aircraft Component"),
+                "symptom": graph_res.get("symptom", "Observed Defect")
+            })
+            causes.append(f"- **{rec['problem']}** *(Grounding: `[IDENT: {ident}]`)*")
+            actions.append(f"- **{rec['action']}** *(Applied in: `[IDENT: {ident}]`)*")
 
-def run_agent(query: str) -> dict[str, Any]:
-    """Execute the full agentic pipeline for a query.
+        # Visual DOT graph
+        dot_code = self.kg.generate_dot_graph(graph_res)
 
-    Returns
-    -------
-    dict[str, Any]
-        Dictionary with keys:
-          - answer: str
-          - cited_records: list[dict]
-          - tool_trace: list[dict]
-    """
-    initial_state: AgentState = {
-        "raw_query": query,
-        "normalized_query": "",
-        "search_results": [],
-        "refused": False,
-        "answer": "",
-        "cited_records": [],
-        "tool_trace": [],
-    }
+        # Attempt LLM synthesis with Gemma 4 if enabled
+        llm_answer = None
+        if enable_llm:
+            llm_answer = self.synthesize_with_llm(fault_query, cited_records, graph_res)
 
-    final_state = AGENT_GRAPH.invoke(initial_state)
+        if llm_answer:
+            answer_text = (
+                f"### 🤖 Gemma 4 Diagnostic Synthesis\n\n"
+                f"**Anchored System:** `{graph_res.get('system', 'Powerplant')}` | "
+                f"**Component:** `{graph_res.get('component', 'Core')}`\n\n"
+                f"{llm_answer}"
+            )
+            synthesis_model = f"{self.ollama_model} (Local Ollama)"
+        else:
+            comp_name = graph_res.get("component") or "Component"
+            symp_name = graph_res.get("symptom") or "Defect"
+            best_fix = cited_records[0]["action"] if cited_records else "Inspect according to AMM"
 
-    return {
-        "answer": final_state.get("answer", ""),
-        "cited_records": final_state.get("cited_records", []),
-        "tool_trace": final_state.get("tool_trace", []),
-    }
+            answer_text = (
+                f"### ✈️ GraphRAG Diagnostic Assessment\n\n"
+                f"**Anchored System:** `{graph_res.get('system', 'Powerplant')}`  \n"
+                f"**Component Affected:** `{comp_name}`  \n"
+                f"**Historical Defect Pattern:** `{symp_name}`\n\n"
+                f"#### 🔍 Observed Problem Variants in Historical Fleet:\n"
+                + "\n".join(causes) + "\n\n"
+                f"#### 🛠️ Verified Clearing Actions Taken by Technicians:\n"
+                + "\n".join(actions) + "\n\n"
+                f"#### 🎯 Primary Recommendation:\n"
+                f"Historical records indicate technicians most frequently cleared this fault by: **{best_fix}** "
+                f"*(Documented in `[IDENT: {cited_records[0]['ident']}]`)*."
+            )
+            synthesis_model = "Deterministic GraphRAG Template"
+
+        trace.append({
+            "step": len(trace) + 1,
+            "tool": "synthesize_evidence",
+            "input": {"num_records": len(cited_records), "model": synthesis_model},
+            "output_summary": f"Generated grounded diagnosis citing {len(cited_records)} records"
+        })
+
+        return {
+            "status": "success",
+            "query": fault_query,
+            "effective_query": effective_query,
+            "was_rewritten": was_rewritten,
+            "rewrite_note": rewrite_note,
+            "synthesis_model": synthesis_model,
+            "answer": answer_text,
+            "cited_records": cited_records,
+            "confidence": top_conf,
+            "graph_dot": dot_code,
+            "subgraph_info": graph_res,
+            "disclaimer": SYSTEM_DISCLAIMER,
+            "tool_trace": trace
+        }
 
 
 if __name__ == "__main__":
-    print("\n" + "=" * 60)
-    print("TESTING AGENTIC BACKEND WITH VALID QUERY")
-    print("=" * 60)
-    valid_query = "ENG OIL PRESS LOW"
-    res1 = run_agent(valid_query)
-    print(f"\nQuery: '{valid_query}'")
-    print(f"\nAnswer:\n{res1['answer']}")
-    print(f"\nCited Record IDs: {[r['ident'] for r in res1['cited_records']]}")
-    print(f"Tool Trace Steps: {[t['step'] for t in res1['tool_trace']]}")
-
-    print("\n" + "=" * 60)
-    print("TESTING REFUSAL THRESHOLD WITH IRRELEVANT QUERY")
-    print("=" * 60)
-    irrelevant_query = "how to bake a chocolate cake"
-    res2 = run_agent(irrelevant_query)
-    print(f"\nQuery: '{irrelevant_query}'")
-    print(f"Answer: {res2['answer']}")
-    print(f"Cited Record IDs: {[r['ident'] for r in res2['cited_records']]}")
-    print(f"Tool Trace Steps: {[t['step'] for t in res2['tool_trace']]}")
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    DATASET_CSV = os.path.join(BASE_DIR, "dataset", "Aircraft_Annotation_DataFile.csv")
+    ABBREV_CSV = os.path.join(BASE_DIR, "dataset", "Aviation_Abbreviation_Dataset.csv")
+    
+    idx = HybridIndex(DATASET_CSV, ABBREV_CSV)
+    kg = AviationKnowledgeGraph(DATASET_CSV, ABBREV_CSV)
+    agent = MaintenanceCopilotAgent(idx, kg)
+    
+    print("Testing conversational query with Gemma 4 rewrite:")
+    res = agent.answer_fault("the bird left fan is coughing when I push the throttle", enable_llm=True)
+    print("Status:", res["status"])
+    print("Effective Query:", res.get("effective_query"))
+    print("Was Rewritten:", res.get("was_rewritten"))
+    print("Synthesis Model:", res.get("synthesis_model"))
+    print("\nAnswer:\n", res["answer"])
