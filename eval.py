@@ -34,18 +34,23 @@ TEST_PAIRS = [
 ]
 
 # 10 Adversarial Near-Miss Refusal Cases (Plausible light aircraft faults on fleet components, but zero logbook precedent)
-REFUSAL_TESTS = [
-    "Fuel tank selector valve jammed with fuel leaking into cockpit carpet",
-    "Magneto internal plastic distributor gear teeth stripped and seized",
-    "Propeller governor internal flyweights separated and jammed at high pitch stop",
-    "Rudder pedal toe brake master cylinder piston snapped at cylinder base",
-    "Starter motor bendix drive clutch fractured and disintegrated inside accessory case",
-    "Muffler internal flame cone collapsed and completely plugged tailpipe outlet",
-    "Oil filter adapter bypass valve spring broken open with zero oil pressure reading",
-    "Carburetor brass float punctured and sunk causing continuous fuel overflow through throat",
-    "Alternator internal stator windings melted with smoke and electrical fire in cockpit",
-    "Throttle mixture vernier control inner wire sheared inside cockpit quadrant",
-]
+REFUSAL_FILE = os.path.join(BASE_DIR, "refusal_tests.txt")
+if os.path.exists(REFUSAL_FILE):
+    with open(REFUSAL_FILE, "r", encoding="utf-8") as f:
+        REFUSAL_TESTS = [line.strip() for line in f if line.strip() and not line.startswith("#")]
+else:
+    REFUSAL_TESTS = [
+        "Fuel tank selector valve jammed with fuel leaking into cockpit carpet",
+        "Magneto internal plastic distributor gear teeth stripped and seized",
+        "Propeller governor internal flyweights separated and jammed at high pitch stop",
+        "Rudder pedal toe brake master cylinder piston snapped at cylinder base",
+        "Starter motor bendix drive clutch fractured and disintegrated inside accessory case",
+        "Muffler internal flame cone collapsed and completely plugged tailpipe outlet",
+        "Oil filter adapter bypass valve spring broken open with zero oil pressure reading",
+        "Carburetor brass float punctured and sunk causing continuous fuel overflow through throat",
+        "Alternator internal stator windings melted with smoke and electrical fire in cockpit",
+        "Throttle mixture vernier control inner wire sheared inside cockpit quadrant",
+    ]
 
 def run_evaluation():
     print("=" * 60)
