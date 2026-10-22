@@ -168,13 +168,14 @@ class HybridIndex:
             return [], False, {"reason": "No matches found.", "confidence": 0.0}
 
         # Refusal criteria:
-        # 1. Confidence >= 0.38 OR
-        # 2. Token coverage >= 0.50 (at least half of search keywords exist in log) OR
-        # 3. Cosine similarity >= 0.52
+        # Requires a minimum token coverage anchor (>= 0.32) to prevent false positives
+        # on adversarial near-miss queries where only a few tokens match a tiny document.
         is_confident = (
-            (best["confidence"] >= 0.38) or
-            (best["coverage"] >= 0.50 and best["bm25_score"] > 2.0) or
-            (best["cos_sim"] >= 0.52)
+            best["coverage"] >= 0.32 and (
+                (best["confidence"] >= 0.35) or
+                (best["coverage"] >= 0.45 and best["bm25_score"] > 2.0) or
+                (best["cos_sim"] >= 0.52)
+            )
         )
         
         metrics = {

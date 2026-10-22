@@ -188,10 +188,10 @@ with st.sidebar:
         ("🛢️ Lube: Abnormally high oil pressure", "Abnormally high engine oil pressure observed during ground run"),
         ("⚙️ Starter: Grinding sheared ring gear", "Grinding noise on engine start, teeth sheared on starter ring gear"),
         ("🌬️ Cooling: Cowl flap creeps shut in flight", "Right cowl flap creeps shut and will not stay open in flight"),
-        ("✈️ Controls: Rudder cover cracked", "Top and bottom rudder aerodynamic balance covers cracked"),
-        ("🛡️ Refusal: Thrust reverser on turbofan", "Hydraulic thrust reverser blocker door actuator seals leaking on CF34 turbofan"),
-        ("🛡️ Refusal: Cabin pressurization dump valve", "Cabin pressure outflow valve differential controller stuck in automatic dump mode"),
-        ("🛡️ Refusal: FADEC channel B fault code", "FADEC electronic engine control channel B failure with recurring sensor fault code"),
+        ("🛡️ Near-Miss Refusal: Cockpit fuel selector leak", "Fuel tank selector valve jammed with fuel leaking into cockpit carpet"),
+        ("🛡️ Near-Miss Refusal: Magneto plastic gear seized", "Magneto internal plastic distributor gear teeth stripped and seized"),
+        ("🛡️ Near-Miss Refusal: Governor flyweight separation", "Propeller governor internal flyweights separated and jammed at high pitch stop"),
+        ("🛡️ Near-Miss Refusal: Sunk carburetor brass float", "Carburetor brass float punctured and sunk causing continuous fuel overflow through throat"),
     ]
     
     for label, query_text in sample_queries:

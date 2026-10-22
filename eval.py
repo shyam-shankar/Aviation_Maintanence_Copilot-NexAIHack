@@ -33,16 +33,18 @@ TEST_PAIRS = [
     ("Exhaust gas leak at cylinder 3 exhaust riser seal flange", "100193"),
 ]
 
-# 8 Hard Adversarial Refusal Cases (Plausible Aviation Terminology for Non-Existent Systems in Trainer Fleet)
+# 10 Adversarial Near-Miss Refusal Cases (Plausible light aircraft faults on fleet components, but zero logbook precedent)
 REFUSAL_TESTS = [
-    "Hydraulic thrust reverser blocker door actuator seals leaking on CF34 turbofan",
-    "Cabin pressure outflow valve differential controller stuck in automatic dump mode",
-    "FADEC electronic engine control channel B failure with recurring sensor fault code",
-    "Auxiliary power unit APU starter generator overheating during ramp turnaround",
-    "Turbofan high pressure turbine stage 1 nozzle guide vane thermal burn-through",
-    "Trailing edge Krueger flap rotary drive motor electrical jam",
-    "Fly-by-wire flight control pitch trim servo command disagreement warning",
-    "Cockpit ram air turbine RAT deployment door latch heater circuit open",
+    "Fuel tank selector valve jammed with fuel leaking into cockpit carpet",
+    "Magneto internal plastic distributor gear teeth stripped and seized",
+    "Propeller governor internal flyweights separated and jammed at high pitch stop",
+    "Rudder pedal toe brake master cylinder piston snapped at cylinder base",
+    "Starter motor bendix drive clutch fractured and disintegrated inside accessory case",
+    "Muffler internal flame cone collapsed and completely plugged tailpipe outlet",
+    "Oil filter adapter bypass valve spring broken open with zero oil pressure reading",
+    "Carburetor brass float punctured and sunk causing continuous fuel overflow through throat",
+    "Alternator internal stator windings melted with smoke and electrical fire in cockpit",
+    "Throttle mixture vernier control inner wire sheared inside cockpit quadrant",
 ]
 
 def run_evaluation():
@@ -86,7 +88,7 @@ def run_evaluation():
 
     # 2. Refusal Evaluation
     print("\n" + "-" * 60)
-    print("[Metric 2] Correct Refusal Rate on 5 Out-of-Domain Queries:")
+    print("[Metric 2] Correct Refusal Rate on 10 Adversarial Near-Miss Queries:")
     refusals = 0
     for q in REFUSAL_TESTS:
         resp = agent.answer_fault(q, enable_llm=False)
