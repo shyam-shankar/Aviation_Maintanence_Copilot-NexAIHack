@@ -182,14 +182,16 @@ with st.sidebar:
     st.markdown("Select a real flight discrepancy to test:")
     
     sample_queries = [
-        ("Power loss on climbout", "HAD ENGINE CHOKE & BRIEFLY LOSE POWER ON DEPARTURE. FULL THR"),
-        ("🗣️ Slang: Cylinder oil drip", "i think the number 2 cylinder is dripping oil from the top cover"),
-        ("Rocker cover gasket leaking", "#2 & 4 CYL ROCKER COVER GASKETS ARE LEAKING"),
-        ("Engine idle stall / killed engine", "ENGINE IDLE OVERRIDE KILLED ENGINE"),
-        ("Loose alternator belt", "ALT BELT LOOSE"),
-        ("Left hand engine baffle cracked", "AFT L/H ENGINE BAFFLE CRACKED"),
-        ("❌ Refusal: Boeing 777 toilet", "Boeing 777 toilet flush sensor broke in cabin"),
-        ("❌ Refusal: Electric vehicle", "Tesla Model 3 lithium battery charging door stuck"),
+        ("⚡ Ignition: Mag RPM drop on runup", "Left magneto excessive RPM drop during engine run-up checks"),
+        ("⛽ Fuel: Pressure needle spiking red", "Fuel pressure indicator needle spiking into the red arc intermittently"),
+        ("🛞 Gear/Brakes: Worn brake linings", "Main landing gear brake linings excessively worn and thin"),
+        ("🛢️ Lube: Abnormally high oil pressure", "Abnormally high engine oil pressure observed during ground run"),
+        ("⚙️ Starter: Grinding sheared ring gear", "Grinding noise on engine start, teeth sheared on starter ring gear"),
+        ("🌬️ Cooling: Cowl flap creeps shut in flight", "Right cowl flap creeps shut and will not stay open in flight"),
+        ("✈️ Controls: Rudder cover cracked", "Top and bottom rudder aerodynamic balance covers cracked"),
+        ("🛡️ Refusal: Thrust reverser on turbofan", "Hydraulic thrust reverser blocker door actuator seals leaking on CF34 turbofan"),
+        ("🛡️ Refusal: Cabin pressurization dump valve", "Cabin pressure outflow valve differential controller stuck in automatic dump mode"),
+        ("🛡️ Refusal: FADEC channel B fault code", "FADEC electronic engine control channel B failure with recurring sensor fault code"),
     ]
     
     for label, query_text in sample_queries:

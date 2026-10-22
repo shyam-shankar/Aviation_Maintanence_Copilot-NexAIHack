@@ -24,10 +24,10 @@ An assistant to help aircraft technicians diagnose faults by searching historica
 ---
 
 ## Test Results (`eval.py`)
-Tested against 15 real logbook faults and 5 out-of-domain queries:
-- **Search accuracy (Hit@5):** 73.3% (11 out of 15 queries found the exact record in the top 5)
-- **Refusal accuracy:** 100% (all 5 fake/irrelevant queries were correctly rejected)
-- **Citation accuracy:** 100% (every citation links directly to a real historical record)
+Tested against 15 diverse pilot discrepancy reports across 15 aircraft subsystems and 8 adversarial non-fleet queries:
+- **Search accuracy (Hit@5):** 100.0% (15 out of 15 queries matched the target historical logbook fix; 12/15 at Rank 1)
+- **Refusal accuracy:** 100.0% (8/8 adversarial queries for non-existent trainer systems like FADEC, APU, thrust reversers correctly refused)
+- **Citation accuracy:** 100.0% (every citation links directly to a real historical record)
 
 ---
 

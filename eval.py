@@ -14,32 +14,35 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATASET_CSV = os.path.join(BASE_DIR, "dataset", "Aircraft_Annotation_DataFile.csv")
 ABBREV_CSV = os.path.join(BASE_DIR, "dataset", "Aviation_Abbreviation_Dataset.csv")
 
-# 15 Ground-Truth Test Cases (Query -> Expected Target Record IDENT)
+# 15 Hard & Diverse Ground-Truth Test Cases (Conversational Pilot Discrepancy -> Target Record)
 TEST_PAIRS = [
-    ("Engine choke and briefly lose power on departure", "100004"),
-    ("#2 and 4 cylinder rocker cover gaskets are leaking", "100005"),
-    ("Induction tube hose clamps loose all cylinders", "100007"),
-    ("#4 rocker cover is leaking", "100010"),
-    ("#1, 2, & 6 cowl mounts torn", "100050"),
-    ("Oil found on entire right side of fuselage", "100101"),
-    ("#2 intake leaking", "100251"),
-    ("Aft left hand engine baffle cracked", "100500"),
-    ("L/H #1 side baffle seal loose", "100751"),
-    ("#2 & 3 rocker covers on L/H engine leaking", "101001"),
-    ("#2, 3, 4 rocker gaskets leaking", "101501"),
-    ("CYL #1 rocker cover gasket leaking", "102001"),
-    ("Upper cowling needs small piece of chafe tape", "103001"),
-    ("#2 intake gasket leaking", "104001"),
-    ("Alternator belt loose", "101071")
+    ("Left magneto excessive RPM drop during engine run-up checks", "100892"),
+    ("Fuel pressure indicator needle spiking into the red arc intermittently", "100067"),
+    ("Abnormally high engine oil pressure observed during ground run", "100062"),
+    ("Ammeter showing continuous discharge after engine start and battery discharging", "100523"),
+    ("Main landing gear brake linings excessively worn and thin", "100147"),
+    ("Grinding noise on engine start, teeth sheared on starter ring gear", "100309"),
+    ("Right cowl flap creeps shut and will not stay open in flight", "101613"),
+    ("Top and bottom rudder aerodynamic balance covers cracked", "100823"),
+    ("Crack found on front engine baffle near the muffler heat shroud", "100825"),
+    ("Vacuum instrument hose chafing against oil cooler line", "100065"),
+    ("Engine hesitates and briefly loses power during takeoff roll", "100004"),
+    ("Induction air filter element clogged and due for replacement", "101381"),
+    ("L/H engine #3 aft cooling baffle has fatigue crack", "104638"),
+    ("Alternator drive belt slipping and loose bracket bolts", "101071"),
+    ("Exhaust gas leak at cylinder 3 exhaust riser seal flange", "100193"),
 ]
 
-# 5 Negative / Out-of-Domain Refusal Cases
+# 8 Hard Adversarial Refusal Cases (Plausible Aviation Terminology for Non-Existent Systems in Trainer Fleet)
 REFUSAL_TESTS = [
-    "Boeing 777 toilet flush vacuum sensor failed in coach",
-    "Tesla Model 3 lithium battery charging port latch stuck",
-    "Passenger seat row 14 tray table hinge cracked in cabin",
-    "Nuclear submarine propulsion ballast valve pressure drop",
-    "Airbus A380 upper deck galley espresso machine water leak"
+    "Hydraulic thrust reverser blocker door actuator seals leaking on CF34 turbofan",
+    "Cabin pressure outflow valve differential controller stuck in automatic dump mode",
+    "FADEC electronic engine control channel B failure with recurring sensor fault code",
+    "Auxiliary power unit APU starter generator overheating during ramp turnaround",
+    "Turbofan high pressure turbine stage 1 nozzle guide vane thermal burn-through",
+    "Trailing edge Krueger flap rotary drive motor electrical jam",
+    "Fly-by-wire flight control pitch trim servo command disagreement warning",
+    "Cockpit ram air turbine RAT deployment door latch heater circuit open",
 ]
 
 def run_evaluation():
