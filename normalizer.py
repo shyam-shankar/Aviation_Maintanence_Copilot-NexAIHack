@@ -126,6 +126,16 @@ class AviationNormalizer:
             (r"\bp\s*/\s*n\b", "part number"),
             (r"\bs\s*/\s*n\b", "serial number"),
             (r"#(\d+)", r"cylinder \1"),
+            (r"\bpowerloss\b", "power loss"),
+            (r"\bchoking\b", "choke"),
+            (r"\bloss\s+of\s+power\b", "lose power"),
+            (r"\blost\s+power\b", "lose power"),
+            (r"\bvibrating\b", "vibration"),
+            (r"\bshaking\b", "vibration"),
+            (r"\bhesitating\b", "hesitation"),
+            (r"\bstalling\b", "stall"),
+            (r"\boverheating\b", "overheat"),
+            (r"\bbackfiring\b", "backfire"),
         ]
         for pattern, repl in compound_replacements:
             s = re.sub(pattern, repl, s)

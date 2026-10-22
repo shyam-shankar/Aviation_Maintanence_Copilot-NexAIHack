@@ -18,7 +18,8 @@ from normalizer import AviationNormalizer
 STOPWORDS = {
     "in", "the", "on", "at", "to", "for", "a", "an", "and", "or",
     "is", "are", "was", "were", "with", "by", "of", "it", "this",
-    "that", "from", "as", "be", "been", "has", "have", "had"
+    "that", "from", "as", "be", "been", "has", "have", "had",
+    "during", "when", "while", "after", "before", "about"
 }
 
 class HybridIndex:
@@ -124,7 +125,24 @@ class HybridIndex:
         for idx in top_indices:
             rec = self.records[idx]
             rec_tokens = set(rec["tokens"])
-            matched_tokens = [t for t in q_tokens if t in rec_tokens]
+            matched_tokens = []
+            for t in q_tokens:
+                if t in rec_tokens:
+                    matched_tokens.append(t)
+                else:
+                    # Suffix-aware morphological matching (ing, ed, s, es)
+                    root = t
+                    if t.endswith("ing") and len(t) > 4:
+                        root = t[:-3]
+                    elif t.endswith("ed") and len(t) > 3:
+                        root = t[:-2]
+                    elif t.endswith("es") and len(t) > 3:
+                        root = t[:-2]
+                    elif t.endswith("s") and len(t) > 2:
+                        root = t[:-1]
+                    if any(rt == root or rt.startswith(root) or (len(rt) > 3 and root.startswith(rt)) for rt in rec_tokens):
+                        matched_tokens.append(t)
+
             coverage = len(matched_tokens) / len(q_tokens) if q_tokens else 0.0
             cos_sim = float(sim_scores[idx])
             bm_score = float(bm_scores[idx])

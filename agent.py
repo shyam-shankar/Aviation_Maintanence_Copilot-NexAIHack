@@ -57,12 +57,16 @@ class MaintenanceCopilotAgent:
         if not self.is_ollama_available:
             return raw_query, False, "Ollama unavailable; using standard normalizer"
 
-        prompt = f"""Convert this conversational fault report into 3 to 6 aviation maintenance search terms.
-Reply with ONLY the search terms on a single line, nothing else.
+        prompt = f"""Convert this conversational fault report into 3 to 5 concise aviation maintenance keywords matching logbook discrepancy notes.
+CRITICAL RULES:
+1. Extract ONLY the observed defect and affected component.
+2. Do NOT speculate or add hypothetical causes (do NOT add 'fuel system', 'electrical', 'performance issues', etc.).
+3. Output root words (e.g. choking -> choke, powerloss -> power loss).
+4. Reply with ONLY the search keywords on a single line, nothing else.
 
 Example:
 Report: the bird's left fan is coughing when I push the throttle
-Search terms: left engine choke power loss throttle
+Search terms: left engine choke throttle power loss
 
 Report: {raw_query}
 Search terms:"""
@@ -72,7 +76,7 @@ Search terms:"""
                 "model": self.ollama_model,
                 "prompt": prompt,
                 "stream": False,
-                "options": {"temperature": 0.1}
+                "options": {"temperature": 0.0}
             }
             resp = requests.post(f"{OLLAMA_ENDPOINT}/api/generate", json=payload, timeout=8)
             if resp.status_code == 200:
@@ -80,9 +84,11 @@ Search terms:"""
                 # Clean up lines
                 lines = [re.sub(r"[\*\"]", "", l).strip() for l in text.split("\n") if l.strip()]
                 if lines and len(lines[0]) > 3:
-                    rewritten = lines[0]
+                    raw_rewritten = lines[0]
+                    # Pass through normalizer to guarantee expanded compounds & abbreviations
+                    rewritten = self.index.normalizer.normalize(raw_rewritten)
                     return rewritten, True, f"Rewritten via {self.ollama_model}"
-        except Exception as e:
+        except Exception:
             pass
 
         return raw_query, False, "Fallback to original query"
